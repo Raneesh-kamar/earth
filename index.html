@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Spacetime Curvature — Earth & Moon</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+  }
+  #canvas-main {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  /* Bloom overlay canvas */
+  #canvas-bloom {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    opacity: 0.38;
+    filter: blur(7px);
+    mix-blend-mode: screen;
+  }
+  #ui {
+    position: absolute;
+    bottom: 28px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(100,200,255,0.15);
+    border-radius: 16px;
+    padding: 10px 24px 11px;
+    backdrop-filter: blur(10px);
+    z-index: 10;
+    white-space: nowrap;
+  }
+  #author {
+    font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
+    color: rgba(200,230,255,0.75);
+    margin-bottom: 9px; width: 100%; text-align: center;
+  }
+  #ui-controls {
+    display: flex; flex-direction: row; align-items: center;
+    gap: 20px; flex-wrap: nowrap;
+  }
+  .divider {
+    width: 1px; height: 32px;
+    background: rgba(100,180,255,0.12);
+    flex-shrink: 0;
+  }
+  .ctrl { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; }
+  .ctrl label {
+    font-size: 8px; letter-spacing: 1.8px; text-transform: uppercase;
+    color: rgba(120,200,255,0.6);
+  }
+  .ctrl input[type=range] { width: 76px; accent-color: #00cfff; cursor: pointer; }
+  .ctrl span { font-size: 9px; color: rgba(180,230,255,0.85); min-width: 32px; text-align: center; }
+  #btn-mode {
+    font-size: 8px; letter-spacing: 1.8px; text-transform: uppercase;
+    color: rgba(120,200,255,0.85);
+    background: rgba(0,180,255,0.07);
+    border: 1px solid rgba(0,180,255,0.25);
+    border-radius: 20px; padding: 6px 14px; cursor: pointer;
+    transition: all 0.25s; flex-shrink: 0; white-space: nowrap;
+  }
+  #btn-mode:hover { background: rgba(0,180,255,0.18); }
+  #btn-grid {
+    font-size: 8px; letter-spacing: 1.8px; text-transform: uppercase;
+    color: rgba(120,200,255,0.85);
+    background: rgba(0,180,255,0.07);
+    border: 1px solid rgba(0,180,255,0.25);
+    border-radius: 20px; padding: 6px 14px; cursor: pointer;
+    transition: all 0.25s; flex-shrink: 0; white-space: nowrap;
+  }
+  #btn-grid:hover { background: rgba(0,180,255,0.18); }
+  #btn-grid.off {
+    color: rgba(120,200,255,0.35);
+    background: rgba(0,0,0,0.1);
+    border-color: rgba(0,180,255,0.1);
+  }
+  #label {
+    position: absolute; top: 28px; left: 50%;
+    transform: translateX(-50%);
+    text-align: center; pointer-events: none; z-index: 10;
+  }
+  #label h1 {
+    font-size: 13px; letter-spacing: 6px; text-transform: uppercase;
+    color: rgba(200,235,255,0.92);
+    font-weight: 400;
+  }
+  #label p {
+    font-size: 9px; letter-spacing: 3px;
+    color: rgba(160,210,240,0.72);
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas-main"></canvas>
+<canvas id="canvas-bloom"></canvas>
+
+<div id="label">
+  <h1>Spacetime Curvature</h1>
+  <p>Earth &ndash; Moon Gravitational Well</p>
+</div>
+
+<div id="ui">
+  <div id="author">Raneesh Kamar</div>
+  <div id="ui-controls">
+    <div class="ctrl">
+      <label>Earth Mass</label>
+      <input type="range" id="sl-earth" min="1" max="5" step="0.1" value="1">
+      <span id="val-earth">1.0×</span>
+    </div>
+    <div class="ctrl">
+      <label>Moon Mass</label>
+      <input type="range" id="sl-moon" min="0.5" max="5" step="0.05" value="1">
+      <span id="val-moon">1.0×</span>
+    </div>
+    <div class="divider"></div>
+    <div class="ctrl">
+      <label>Orbit Speed</label>
+      <input type="range" id="sl-speed" min="0.1" max="4" step="0.05" value="1">
+      <span id="val-speed">1.0×</span>
+    </div>
+    <div class="ctrl">
+      <label>Warp Scale</label>
+      <input type="range" id="sl-warp" min="0.5" max="3" step="0.1" value="1.4">
+      <span id="val-warp">1.4</span>
+    </div>
+    <div class="divider"></div>
+    <div class="ctrl">
+      <label>Grid Density</label>
+      <input type="range" id="sl-grid" min="10" max="26" step="2" value="18">
+      <span id="val-grid">18</span>
+    </div>
+    <div class="ctrl">
+      <label>Pulse Freq</label>
+      <input type="range" id="sl-pulse" min="0" max="2" step="0.05" value="0">
+      <span id="val-pulse">Off</span>
+    </div>
+    <div class="divider"></div>
+    <button id="btn-mode">⟳ Auto Cam</button>
+    <button id="btn-grid">⊞ Grid On</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── GLOBALS ───────────────────────────────────────────────────────────────
+const W = window.innerWidth, H = window.innerHeight;
+const canvasMain  = document.getElementById('canvas-main');
+const canvasBloom = document.getElementById('canvas-bloom');
+
+// ─── RENDERER ──────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ canvas: canvasMain, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(W, H);
+renderer.setClearColor(0x000005, 1);
+
+const rendererBloom = new THREE.WebGLRenderer({ canvas: canvasBloom, antialias: false, alpha: true });
+rendererBloom.setPixelRatio(1);
+rendererBloom.setSize(W, H);
+rendererBloom.setClearColor(0x000000, 0);
+
+const scene = new THREE.Scene();
+const sceneBloom = new THREE.Scene();
+
+// ─── CAMERA ────────────────────────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(55, W/H, 0.01, 2000);
+camera.position.set(0, 28, 52);
+camera.lookAt(0, 0, 0);
+
+// ─── PARAMS ────────────────────────────────────────────────────────────────
+const P = {
+  moonMass: 0.12,   // baseline = 1× moon, slider multiplies this
+  earthMass: 1.0,   // slider: 1–5×
+  orbitSpeed: 1.0,
+  gridN: 18,
+  warpScale: 1.4,
+  softening: 1.8,
+  gridHalf: 22,
+  autoCamera: true,
+  pulseFreq: 0.0,
+};
+
+// ─── ORBIT STATE ───────────────────────────────────────────────────────────
+let moonAngle = 0;
+const ORBIT_A = 11, ORBIT_B = 9, ORBIT_TILT = 0.18;
+
+function moonPos(angle) {
+  return new THREE.Vector3(
+    ORBIT_A * Math.cos(angle),
+    ORBIT_TILT * Math.sin(angle) * 3,
+    ORBIT_B * Math.sin(angle)
+  );
+}
+
+// ─── COLOR HELPERS ─────────────────────────────────────────────────────────
+const C_FLAT   = new THREE.Color(0x040d1f);
+const C_MID    = new THREE.Color(0x0088cc);
+const C_BRIGHT = new THREE.Color(0x99eeff);
+const C_HOT    = new THREE.Color(0xfff5cc);
+
+function curvatureColor(t) {
+  // t in [0,1]
+  const c = new THREE.Color();
+  if (t < 0.35) c.lerpColors(C_FLAT,   C_MID,    t / 0.35);
+  else if (t < 0.7) c.lerpColors(C_MID, C_BRIGHT, (t-0.35)/0.35);
+  else c.lerpColors(C_BRIGHT, C_HOT, (t-0.7)/0.3);
+  return c;
+}
+
+// ─── LATTICE ───────────────────────────────────────────────────────────────
+let latticeObj = null, latticeBloomObj = null;
+let restPositions = [];
+let currentPositions = [];
+let edgeIndices = [];
+let N = 0;
+
+function buildLattice(n) {
+  N = n;
+  restPositions = [];
+  currentPositions = [];
+  edgeIndices = [];
+
+  const half = P.gridHalf;
+  const step = (half * 2) / (n - 1);
+  const idx = (ix, iy, iz) => ix + iy * n + iz * n * n;
+
+  // nodes
+  for (let iz = 0; iz < n; iz++)
+  for (let iy = 0; iy < n; iy++)
+  for (let ix = 0; ix < n; ix++) {
+    const x = -half + ix * step;
+    const y = -half + iy * step;
+    const z = -half + iz * step;
+    restPositions.push(x, y, z);
+    currentPositions.push(x, y, z);
+  }
+
+  // edges (only outer shell + cross-section slices for performance + aesthetics)
+  const addEdge = (a, b) => { edgeIndices.push(a, b); };
+
+  for (let iz = 0; iz < n; iz++)
+  for (let iy = 0; iy < n; iy++)
+  for (let ix = 0; ix < n; ix++) {
+    const i = idx(ix, iy, iz);
+    // draw edges only for "interesting" slices to keep performance good
+    // 3 orthogonal directions
+    if (ix < n-1) addEdge(i, idx(ix+1, iy, iz));
+    if (iy < n-1) addEdge(i, idx(ix, iy+1, iz));
+    if (iz < n-1) addEdge(i, idx(ix, iy, iz+1));
+  }
+
+  const totalVerts = edgeIndices.length * 2;
+  const positions = new Float32Array(totalVerts * 3);
+  const colors    = new Float32Array(totalVerts * 3);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
+  geo.setIndex(null); // we'll use LineSegments manually
+
+  // rebuild as line segments (each edge = 2 verts)
+  const posAttr = new THREE.BufferAttribute(new Float32Array(totalVerts * 3), 3);
+  const colAttr = new THREE.BufferAttribute(new Float32Array(totalVerts * 3), 3);
+  const geo2 = new THREE.BufferGeometry();
+  geo2.setAttribute('position', posAttr);
+  geo2.setAttribute('color', colAttr);
+
+  const mat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false });
+  const matBloom = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 1.0, depthWrite: false });
+
+  if (latticeObj) { scene.remove(latticeObj); sceneBloom.remove(latticeBloomObj); }
+
+  latticeObj = new THREE.LineSegments(geo2, mat);
+  latticeBloomObj = new THREE.LineSegments(geo2.clone(), matBloom);
+  scene.add(latticeObj);
+  sceneBloom.add(latticeBloomObj);
+}
+
+function updateLattice(earthP, moonP) {
+  if (!latticeObj) return;
+
+  const posAttr = latticeObj.geometry.attributes.position;
+  const colAttr = latticeObj.geometry.attributes.color;
+  const posAttrB = latticeBloomObj.geometry.attributes.position;
+  const colAttrB = latticeBloomObj.geometry.attributes.color;
+
+  const n = N;
+  const soft = P.softening * P.softening;
+  const warp = P.warpScale;
+
+  // Color falloff radius — nodes within this distance of a mass glow bright.
+  // Completely independent of earthMass value — mass only affects geometry, not color spread.
+  const EARTH_COLOR_RADIUS = 7.0;
+  const MOON_COLOR_RADIUS  = 4.5;
+
+  const disp = new Float32Array(n * n * n * 3);
+  const curv = new Float32Array(n * n * n);
+
+  for (let i = 0, ni = 0; i < n * n * n; i++, ni += 3) {
+    const rx = restPositions[ni];
+    const ry = restPositions[ni+1];
+    const rz = restPositions[ni+2];
+
+    // earth displacement
+    let dex = earthP.x - rx, dey = earthP.y - ry, dez = earthP.z - rz;
+    let de2 = dex*dex + dey*dey + dez*dez + soft;
+    let de  = Math.sqrt(de2);
+    let fe  = (P.earthMass / de2) * warp * 8;
+
+    // moon displacement
+    let dmx = moonP.x - rx, dmy = moonP.y - ry, dmz = moonP.z - rz;
+    let dm2 = dmx*dmx + dmy*dmy + dmz*dmz + soft;
+    let dm  = Math.sqrt(dm2);
+    let fm  = (P.moonMass / dm2) * warp * 8;
+
+    let dx = (dex/de)*fe + (dmx/dm)*fm;
+    let dy = (dey/de)*fe + (dmy/dm)*fm;
+    let dz = (dez/de)*fe + (dmz/dm)*fm;
+
+    // Cap displacement so nodes never teleport — keeps grid visually intact
+    const dispMag = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    const maxDisp = 10.0;
+    if (dispMag > maxDisp) {
+      const s = maxDisp / dispMag;
+      dx *= s; dy *= s; dz *= s;
+    }
+
+    disp[ni]   = rx + dx;
+    disp[ni+1] = ry + dy;
+    disp[ni+2] = rz + dz;
+
+    // ── Color is based purely on REST distance from each mass ──
+    // This means mass sliders only deepen the well geometry,
+    // they NEVER expand the bright/white region outward.
+    const earthDist = Math.sqrt(dex*dex + dey*dey + dez*dez); // = de approx (soft negligible far out)
+    const moonDist  = Math.sqrt(dmx*dmx + dmy*dmy + dmz*dmz);
+
+    const tEarth = Math.exp(-earthDist / EARTH_COLOR_RADIUS);
+    const tMoon  = Math.exp(-moonDist  / MOON_COLOR_RADIUS);
+
+    // combine: take the stronger of the two influences
+    curv[i] = Math.min(Math.max(tEarth, tMoon), 1.0);
+  }
+
+  // fill edge vertex buffer
+  let vi = 0;
+
+  // Fade-out zone: edges whose DISPLACED endpoints land inside this radius go invisible.
+  // Scaled slightly larger than the sphere radii (Earth=1.8, Moon=0.65) so the
+  // convergence zone is always hidden regardless of mass/warp settings.
+  const EARTH_FADE_IN  = 2.2;   // start fading
+  const EARTH_FADE_OUT = 3.8;   // fully invisible inside this
+  const MOON_FADE_IN   = 1.2;
+  const MOON_FADE_OUT  = 2.2;
+
+  for (let e = 0; e < edgeIndices.length; e += 2) {
+    const ia = edgeIndices[e] * 3;
+    const ib = edgeIndices[e+1] * 3;
+
+    const ax = disp[ia], ay = disp[ia+1], az = disp[ia+2];
+    const bx = disp[ib], by = disp[ib+1], bz = disp[ib+2];
+    const ca = curv[edgeIndices[e]];
+    const cb = curv[edgeIndices[e+1]];
+
+    // Compute fade for each displaced endpoint
+    function edgeFade(px, py, pz) {
+      const dE = Math.sqrt(px*px + py*py + pz*pz); // dist from Earth (at origin)
+      const dM = Math.sqrt(
+        (px - moonP.x)**2 + (py - moonP.y)**2 + (pz - moonP.z)**2
+      );
+      // smoothstep fade: 1 = fully visible, 0 = invisible
+      const fadeE = dE < EARTH_FADE_OUT
+        ? (dE < EARTH_FADE_IN ? 0 : (dE - EARTH_FADE_IN) / (EARTH_FADE_OUT - EARTH_FADE_IN))
+        : 1;
+      const fadeM = dM < MOON_FADE_OUT
+        ? (dM < MOON_FADE_IN ? 0 : (dM - MOON_FADE_IN) / (MOON_FADE_OUT - MOON_FADE_IN))
+        : 1;
+      return Math.min(fadeE, fadeM);
+    }
+
+    const fa = edgeFade(ax, ay, az);
+    const fb = edgeFade(bx, by, bz);
+    // If either endpoint is invisible, fade the whole edge
+    const edgeAlpha = fa * fb;
+
+    posAttr.setXYZ(vi, ax, ay, az);
+    posAttrB.setXYZ(vi, ax, ay, az);
+    const cola = curvatureColor(ca);
+    colAttr.setXYZ(vi,  cola.r * edgeAlpha,  cola.g * edgeAlpha,  cola.b * edgeAlpha);
+    colAttrB.setXYZ(vi, cola.r * edgeAlpha * 2, cola.g * edgeAlpha * 2, cola.b * edgeAlpha * 2);
+    vi++;
+
+    posAttr.setXYZ(vi, bx, by, bz);
+    posAttrB.setXYZ(vi, bx, by, bz);
+    const colb = curvatureColor(cb);
+    colAttr.setXYZ(vi,  colb.r * edgeAlpha,  colb.g * edgeAlpha,  colb.b * edgeAlpha);
+    colAttrB.setXYZ(vi, colb.r * edgeAlpha * 2, colb.g * edgeAlpha * 2, colb.b * edgeAlpha * 2);
+    vi++;
+  }
+
+  posAttr.needsUpdate = true;
+  colAttr.needsUpdate = true;
+  posAttrB.needsUpdate = true;
+  colAttrB.needsUpdate = true;
+}
+
+// ─── LIGHTING ──────────────────────────────────────────────────────────────
+const sunLight = new THREE.PointLight(0xfff5e0, 2.2, 300);
+sunLight.position.set(60, 40, 60);
+scene.add(sunLight);
+scene.add(new THREE.AmbientLight(0x111830, 0.7));
+
+// ─── CANVAS TEXTURE HELPERS ────────────────────────────────────────────────
+function makeEarthTexture() {
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+
+  // deep ocean base
+  ctx.fillStyle = '#0d2a5e';
+  ctx.fillRect(0, 0, size, size);
+
+  // landmass blobs
+  const lands = [
+    // rough continents as ellipses with rotation
+    { x:0.18, y:0.38, rx:0.09, ry:0.16, rot:0.3,  col:'#2d6e3a' },
+    { x:0.22, y:0.55, rx:0.07, ry:0.12, rot:-0.2, col:'#3a7a40' },
+    { x:0.38, y:0.35, rx:0.14, ry:0.10, rot:0.1,  col:'#4a8c3f' },
+    { x:0.42, y:0.55, rx:0.06, ry:0.10, rot:0.5,  col:'#5a6e2a' },
+    { x:0.60, y:0.30, rx:0.12, ry:0.14, rot:-0.4, col:'#3d7a35' },
+    { x:0.65, y:0.55, rx:0.10, ry:0.08, rot:0.6,  col:'#8a7040' },
+    { x:0.80, y:0.40, rx:0.08, ry:0.12, rot:0.2,  col:'#4a8040' },
+    { x:0.50, y:0.75, rx:0.09, ry:0.06, rot:0.0,  col:'#5a8030' },
+    // polar ice
+    { x:0.50, y:0.04, rx:0.50, ry:0.06, rot:0.0,  col:'#cce8ff' },
+    { x:0.50, y:0.96, rx:0.50, ry:0.05, rot:0.0,  col:'#ddeeff' },
+  ];
+
+  for (const l of lands) {
+    ctx.save();
+    ctx.translate(l.x * size, l.y * size);
+    ctx.rotate(l.rot);
+    ctx.scale(1, 1);
+    const g = ctx.createRadialGradient(0,0,0, 0,0, l.rx * size);
+    g.addColorStop(0, l.col);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, l.rx * size, l.ry * size, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // cloud wisps
+  ctx.globalAlpha = 0.22;
+  for (let i = 0; i < 18; i++) {
+    const cx2 = Math.random() * size, cy2 = Math.random() * size;
+    const g2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, 40 + Math.random()*60);
+    g2.addColorStop(0, 'rgba(255,255,255,0.9)');
+    g2.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.ellipse(cx2, cy2, 60 + Math.random()*60, 18 + Math.random()*18, Math.random()*Math.PI, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  return new THREE.CanvasTexture(c);
+}
+
+function makeMoonTexture() {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+
+  ctx.fillStyle = '#7a7670';
+  ctx.fillRect(0, 0, size, size);
+
+  // craters
+  for (let i = 0; i < 28; i++) {
+    const cx2 = Math.random() * size, cy2 = Math.random() * size;
+    const r = 4 + Math.random() * 22;
+    const g = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, r);
+    g.addColorStop(0,   'rgba(50,48,44,0.7)');
+    g.addColorStop(0.7, 'rgba(90,86,80,0.3)');
+    g.addColorStop(1,   'rgba(130,126,118,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx2, cy2, r, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // subtle highland patches
+  for (let i = 0; i < 12; i++) {
+    const cx2 = Math.random() * size, cy2 = Math.random() * size;
+    const g2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, 30 + Math.random()*30);
+    g2.addColorStop(0, 'rgba(160,155,145,0.4)');
+    g2.addColorStop(1, 'rgba(160,155,145,0)');
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.ellipse(cx2, cy2, 40+Math.random()*20, 25+Math.random()*20, Math.random()*Math.PI, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  return new THREE.CanvasTexture(c);
+}
+
+// ─── EARTH & MOON SPHERES ──────────────────────────────────────────────────
+function makeBody(radius, texture, emissiveColor, glowColor, glowLayers) {
+  const geo = new THREE.SphereGeometry(radius, 48, 48);
+  const mat = new THREE.MeshPhongMaterial({
+    map: texture,
+    emissive: new THREE.Color(emissiveColor),
+    emissiveIntensity: 0.08,
+    shininess: 18,
+    specular: new THREE.Color(0x224466),
+  });
+  const sphere = new THREE.Mesh(geo, mat);
+
+  // atmospheric glow halos
+  const halos = [];
+  for (let i = 0; i < glowLayers; i++) {
+    const hgeo = new THREE.SphereGeometry(radius * (1.08 + i * 0.18), 32, 32);
+    const hmat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(glowColor),
+      transparent: true,
+      opacity: 0.07 / (i + 1),
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+    });
+    halos.push(new THREE.Mesh(hgeo, hmat));
+  }
+
+  const group = new THREE.Group();
+  group.add(sphere, ...halos);
+  return group;
+}
+
+const earthTex = makeEarthTexture();
+const moonTex  = makeMoonTexture();
+
+const earthGroup = makeBody(1.8, earthTex, 0x1133aa, 0x2255ff, 5);
+const moonGroup  = makeBody(0.65, moonTex, 0x332211, 0x88aacc, 3);
+scene.add(earthGroup, moonGroup);
+
+// bloom glow versions (bright emissive only, no texture detail needed)
+function makeBloomBody(radius, color, layers) {
+  const group = new THREE.Group();
+  for (let i = 0; i < layers; i++) {
+    const hgeo = new THREE.SphereGeometry(radius * (1.0 + i * 0.35), 24, 24);
+    const hmat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color),
+      transparent: true,
+      opacity: 0.18 / (i + 1),
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: i === 0 ? THREE.FrontSide : THREE.BackSide,
+    });
+    group.add(new THREE.Mesh(hgeo, hmat));
+  }
+  return group;
+}
+const earthBloom = makeBloomBody(1.8, 0x3366ff, 5);
+const moonBloom  = makeBloomBody(0.65, 0x8899cc, 3);
+sceneBloom.add(earthBloom, moonBloom);
+
+// ─── RAIN PARTICLES ────────────────────────────────────────────────────────
+const PARTICLE_COUNT = 2200;
+const pPositions = new Float32Array(PARTICLE_COUNT * 3);
+const pVelocities = new Float32Array(PARTICLE_COUNT * 3);
+const pColors = new Float32Array(PARTICLE_COUNT * 3);
+
+function randomShellPoint(rMin, rMax) {
+  const r = rMin + Math.random() * (rMax - rMin);
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  return [
+    r * Math.sin(phi) * Math.cos(theta),
+    r * Math.sin(phi) * Math.sin(theta),
+    r * Math.cos(phi)
+  ];
+}
+
+function resetParticle(i) {
+  const [x, y, z] = randomShellPoint(16, 26);
+  pPositions[i*3]   = x;
+  pPositions[i*3+1] = y;
+  pPositions[i*3+2] = z;
+  pVelocities[i*3]   = 0;
+  pVelocities[i*3+1] = 0;
+  pVelocities[i*3+2] = 0;
+}
+
+for (let i = 0; i < PARTICLE_COUNT; i++) resetParticle(i);
+
+// sprite texture
+const spriteCanvas = document.createElement('canvas');
+spriteCanvas.width = spriteCanvas.height = 32;
+const sctx = spriteCanvas.getContext('2d');
+const grad = sctx.createRadialGradient(16,16,0,16,16,16);
+grad.addColorStop(0,   'rgba(255,255,255,1)');
+grad.addColorStop(0.3, 'rgba(180,230,255,0.6)');
+grad.addColorStop(1,   'rgba(0,0,0,0)');
+sctx.fillStyle = grad;
+sctx.fillRect(0, 0, 32, 32);
+const spriteTex = new THREE.CanvasTexture(spriteCanvas);
+
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+pGeo.setAttribute('color',    new THREE.BufferAttribute(pColors, 3));
+const pMat = new THREE.PointsMaterial({
+  size: 0.22, map: spriteTex, vertexColors: true,
+  transparent: true, opacity: 0.7,
+  depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true
+});
+const particles = new THREE.Points(pGeo, pMat);
+scene.add(particles);
+
+function updateParticles(earthP, moonP, dt) {
+  const soft2 = 1.5 * 1.5;
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const pi = i * 3;
+    let px = pPositions[pi], py = pPositions[pi+1], pz = pPositions[pi+2];
+
+    // earth
+    let dex = earthP.x - px, dey = earthP.y - py, dez = earthP.z - pz;
+    let de2 = dex*dex + dey*dey + dez*dez + soft2;
+    let de  = Math.sqrt(de2);
+    let fe  = P.earthMass * 1.2 / de2;
+    // moon
+    let dmx = moonP.x - px, dmy = moonP.y - py, dmz = moonP.z - pz;
+    let dm2 = dmx*dmx + dmy*dmy + dmz*dmz + soft2;
+    let dm  = Math.sqrt(dm2);
+    let fm  = P.moonMass * 1.2 / dm2;
+
+    pVelocities[pi]   += ((dex/de)*fe + (dmx/dm)*fm) * dt;
+    pVelocities[pi+1] += ((dey/de)*fe + (dmy/dm)*fm) * dt;
+    pVelocities[pi+2] += ((dez/de)*fe + (dmz/dm)*fm) * dt;
+
+    const speed = Math.sqrt(
+      pVelocities[pi]**2 + pVelocities[pi+1]**2 + pVelocities[pi+2]**2
+    );
+    const maxSpeed = 3.5;
+    if (speed > maxSpeed) {
+      pVelocities[pi]   *= maxSpeed/speed;
+      pVelocities[pi+1] *= maxSpeed/speed;
+      pVelocities[pi+2] *= maxSpeed/speed;
+    }
+
+    px += pVelocities[pi]   * dt;
+    py += pVelocities[pi+1] * dt;
+    pz += pVelocities[pi+2] * dt;
+
+    pPositions[pi]   = px;
+    pPositions[pi+1] = py;
+    pPositions[pi+2] = pz;
+
+    // color: speed → brightness
+    const t = Math.min(speed / maxSpeed, 1);
+    const c = curvatureColor(t * 0.8);
+    pColors[pi]   = c.r;
+    pColors[pi+1] = c.g;
+    pColors[pi+2] = c.b;
+
+    // reset if too close
+    const distEarth = Math.sqrt((px-earthP.x)**2 + (py-earthP.y)**2 + (pz-earthP.z)**2);
+    const distMoon  = Math.sqrt((px-moonP.x)**2  + (py-moonP.y)**2  + (pz-moonP.z)**2);
+    if (distEarth < 1.8 || distMoon < 0.7 || Math.abs(px) > 30 || Math.abs(py) > 30 || Math.abs(pz) > 30) {
+      resetParticle(i);
+    }
+  }
+  pGeo.attributes.position.needsUpdate = true;
+  pGeo.attributes.color.needsUpdate = true;
+}
+
+// ─── GRAVITATIONAL WAVE PULSES ─────────────────────────────────────────────
+const pulses = [];
+let pulseTimer = 0;
+
+function spawnPulse() {
+  const geo = new THREE.SphereGeometry(0.5, 32, 16);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x33aaff,
+    transparent: true,
+    opacity: 0.22,
+    wireframe: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  pulses.push({ mesh, radius: 0.5, opacity: 0.22 });
+}
+
+function updatePulses(dt) {
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i];
+    p.radius += dt * 9;
+    p.opacity = 0.22 * (1 - p.radius / 36);
+    p.mesh.scale.setScalar(p.radius / 0.5);
+    p.mesh.material.opacity = Math.max(0, p.opacity);
+    if (p.opacity <= 0) {
+      scene.remove(p.mesh);
+      pulses.splice(i, 1);
+    }
+  }
+}
+
+// ─── STARFIELD ─────────────────────────────────────────────────────────────
+(function buildStars() {
+  const count = 1800;
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const [x, y, z] = randomShellPoint(80, 200);
+    pos[i*3] = x; pos[i*3+1] = y; pos[i*3+2] = z;
+    const brightness = 0.4 + Math.random() * 0.6;
+    const blue = Math.random() > 0.7 ? 1.0 : brightness;
+    col[i*3] = brightness * 0.85; col[i*3+1] = brightness * 0.9; col[i*3+2] = blue;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({ size: 0.35, vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false, sizeAttenuation: true });
+  scene.add(new THREE.Points(geo, mat));
+})();
+
+// ─── CAMERA CONTROLLER ─────────────────────────────────────────────────────
+let camAngle = 0, camElev = 0.52, camDist = 58;
+let autoCamera = true;
+let camT = 0; // for cinematic path
+
+// Mouse drag
+let isDragging = false, lastMX = 0, lastMY = 0;
+canvasMain.addEventListener('mousedown', e => { isDragging = true; lastMX = e.clientX; lastMY = e.clientY; autoCamera = false; updateBtnMode(); });
+canvasMain.addEventListener('mouseup',   () => { isDragging = false; });
+canvasMain.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - lastMX, dy = e.clientY - lastMY;
+  camAngle += dx * 0.006;
+  camElev  = Math.max(-1.3, Math.min(1.3, camElev - dy * 0.006));
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+canvasMain.addEventListener('wheel', e => {
+  camDist = Math.max(15, Math.min(120, camDist + e.deltaY * 0.05));
+});
+
+// Touch
+canvasMain.addEventListener('touchstart', e => {
+  isDragging = true;
+  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+  autoCamera = false; updateBtnMode();
+});
+canvasMain.addEventListener('touchend', () => isDragging = false);
+canvasMain.addEventListener('touchmove', e => {
+  if (!isDragging) return;
+  const dx = e.touches[0].clientX - lastMX, dy = e.touches[0].clientY - lastMY;
+  camAngle += dx * 0.006;
+  camElev  = Math.max(-1.3, Math.min(1.3, camElev - dy * 0.006));
+  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+});
+
+function updateBtnMode() {
+  document.getElementById('btn-mode').textContent = autoCamera ? '⟳ Auto Cam' : '◎ Manual';
+}
+
+document.getElementById('btn-mode').addEventListener('click', () => {
+  autoCamera = !autoCamera; updateBtnMode();
+});
+
+// ─── GRID TOGGLE ───────────────────────────────────────────────────────────
+let gridVisible = true;
+document.getElementById('btn-grid').addEventListener('click', () => {
+  gridVisible = !gridVisible;
+  if (latticeObj)      latticeObj.visible      = gridVisible;
+  if (latticeBloomObj) latticeBloomObj.visible  = gridVisible;
+  const btn = document.getElementById('btn-grid');
+  btn.textContent = gridVisible ? '⊞ Grid On' : '⊟ Grid Off';
+  btn.classList.toggle('off', !gridVisible);
+});
+
+// Cinematic waypoints
+const camWaypoints = [
+  new THREE.Vector3(0,  6,  18),  // close above earth
+  new THREE.Vector3(28, 12, 28),  // wide side view
+  new THREE.Vector3(-15, 30, 40), // high angle
+  new THREE.Vector3(0,  -8, 36),  // below the plane
+  new THREE.Vector3(40,  5,  10), // orbit side
+  new THREE.Vector3(0,  15, 55),  // far pull back
+];
+const camCurve = new THREE.CatmullRomCurve3(camWaypoints, true);
+
+function updateCamera(dt) {
+  if (autoCamera) {
+    camT = (camT + dt * 0.018) % 1;
+    const pos = camCurve.getPoint(camT);
+    camera.position.lerp(pos, 0.012);
+    camera.lookAt(0, 0, 0);
+  } else {
+    const x = camDist * Math.cos(camElev) * Math.sin(camAngle);
+    const y = camDist * Math.sin(camElev);
+    const z = camDist * Math.cos(camElev) * Math.cos(camAngle);
+    camera.position.set(x, y, z);
+    camera.lookAt(0, 0, 0);
+  }
+}
+
+// ─── SLIDERS ───────────────────────────────────────────────────────────────
+let needRebuildLattice = false;
+
+// Earth mass: slider 1–5 maps to internal mass 1.0–5.0
+document.getElementById('sl-earth').addEventListener('input', e => {
+  P.earthMass = parseFloat(e.target.value);
+  document.getElementById('val-earth').textContent = P.earthMass.toFixed(1) + '×';
+});
+
+// Moon mass: slider 0.5–5 maps to internal mass (scaled relative to earth baseline)
+// Real moon is ~0.012× earth — slider "1×" means real ratio, "5×" means 5× moon mass
+document.getElementById('sl-moon').addEventListener('input', e => {
+  const mult = parseFloat(e.target.value);
+  P.moonMass = mult * 0.12; // 0.12 is the baseline "1× moon" internal value
+  document.getElementById('val-moon').textContent = mult.toFixed(2) + '×';
+});
+document.getElementById('sl-speed').addEventListener('input', e => {
+  P.orbitSpeed = parseFloat(e.target.value);
+  document.getElementById('val-speed').textContent = P.orbitSpeed.toFixed(1) + '×';
+});
+document.getElementById('sl-grid').addEventListener('input', e => {
+  P.gridN = parseInt(e.target.value);
+  document.getElementById('val-grid').textContent = P.gridN;
+  needRebuildLattice = true;
+});
+document.getElementById('sl-warp').addEventListener('input', e => {
+  P.warpScale = parseFloat(e.target.value);
+  document.getElementById('val-warp').textContent = P.warpScale.toFixed(1);
+});
+document.getElementById('sl-pulse').addEventListener('input', e => {
+  P.pulseFreq = parseFloat(e.target.value);
+  const el = document.getElementById('val-pulse');
+  el.textContent = P.pulseFreq === 0 ? 'Off' : P.pulseFreq.toFixed(2) + '/s';
+  if (P.pulseFreq === 0) pulseTimer = 0; // reset timer when turning off
+});
+
+// ─── INIT LATTICE ──────────────────────────────────────────────────────────
+buildLattice(P.gridN);
+
+// ─── ANIMATION LOOP ────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+let lastRebuild = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const time = clock.getElapsedTime();
+
+  // rebuild lattice if grid density changed
+  if (needRebuildLattice) {
+    buildLattice(P.gridN);
+    if (latticeObj)      latticeObj.visible      = gridVisible;
+    if (latticeBloomObj) latticeBloomObj.visible  = gridVisible;
+    needRebuildLattice = false;
+  }
+
+  // advance moon orbit
+  moonAngle += dt * 0.28 * P.orbitSpeed;
+  const mP = moonPos(moonAngle);
+
+  const eP = new THREE.Vector3(0, 0, 0);
+
+  // update lattice only when visible (saves CPU when grid is off)
+  if (gridVisible) updateLattice(eP, mP);
+
+  // update planet positions + earth rotation
+  earthGroup.rotation.y += dt * 0.08;
+  moonGroup.position.copy(mP);
+  moonBloom.position.copy(mP);
+
+  // update particles
+  updateParticles(eP, mP, dt);
+
+  // pulse — only fire if pulseFreq > 0
+  if (P.pulseFreq > 0) {
+    pulseTimer += dt;
+    const interval = 1.0 / P.pulseFreq;
+    if (pulseTimer >= interval) {
+      spawnPulse();
+      pulseTimer = 0;
+    }
+  }
+  updatePulses(dt);
+
+  // camera
+  updateCamera(dt);
+
+  // render main scene
+  renderer.render(scene, camera);
+
+  // render bloom scene
+  rendererBloom.render(sceneBloom, camera);
+}
+
+animate();
+
+// ─── RESIZE ────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  rendererBloom.setSize(w, h);
+});
+</script>
+</body>
+</html>
