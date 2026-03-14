@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Spacetime Curvature — Earth & Moon</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     width: 100%; height: 100%;
     background: #000;
     overflow: hidden;
     font-family: 'Courier New', monospace;
+    touch-action: none;
   }
   #canvas-main {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
   }
-  /* Bloom overlay canvas */
   #canvas-bloom {
     position: absolute; inset: 0;
     width: 100%; height: 100%;
@@ -25,77 +25,147 @@
     filter: blur(7px);
     mix-blend-mode: screen;
   }
-  #ui {
-    position: absolute;
-    bottom: 28px; left: 50%;
-    transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 0;
-    background: rgba(0,0,0,0.6);
-    border: 1px solid rgba(100,200,255,0.15);
-    border-radius: 16px;
-    padding: 10px 24px 11px;
-    backdrop-filter: blur(10px);
-    z-index: 10;
-    white-space: nowrap;
-  }
-  #author {
-    font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
-    color: rgba(200,230,255,0.75);
-    margin-bottom: 9px; width: 100%; text-align: center;
-  }
-  #ui-controls {
-    display: flex; flex-direction: row; align-items: center;
-    gap: 20px; flex-wrap: nowrap;
-  }
-  .divider {
-    width: 1px; height: 32px;
-    background: rgba(100,180,255,0.12);
-    flex-shrink: 0;
-  }
-  .ctrl { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; }
-  .ctrl label {
-    font-size: 8px; letter-spacing: 1.8px; text-transform: uppercase;
-    color: rgba(120,200,255,0.6);
-  }
-  .ctrl input[type=range] { width: 76px; accent-color: #00cfff; cursor: pointer; }
-  .ctrl span { font-size: 9px; color: rgba(180,230,255,0.85); min-width: 32px; text-align: center; }
-  #btn-mode {
-    font-size: 8px; letter-spacing: 1.8px; text-transform: uppercase;
-    color: rgba(120,200,255,0.85);
-    background: rgba(0,180,255,0.07);
-    border: 1px solid rgba(0,180,255,0.25);
-    border-radius: 20px; padding: 6px 14px; cursor: pointer;
-    transition: all 0.25s; flex-shrink: 0; white-space: nowrap;
-  }
-  #btn-mode:hover { background: rgba(0,180,255,0.18); }
-  #btn-grid {
-    font-size: 8px; letter-spacing: 1.8px; text-transform: uppercase;
-    color: rgba(120,200,255,0.85);
-    background: rgba(0,180,255,0.07);
-    border: 1px solid rgba(0,180,255,0.25);
-    border-radius: 20px; padding: 6px 14px; cursor: pointer;
-    transition: all 0.25s; flex-shrink: 0; white-space: nowrap;
-  }
-  #btn-grid:hover { background: rgba(0,180,255,0.18); }
-  #btn-grid.off {
-    color: rgba(120,200,255,0.35);
-    background: rgba(0,0,0,0.1);
-    border-color: rgba(0,180,255,0.1);
-  }
+
+  /* ── TITLE ── */
   #label {
-    position: absolute; top: 28px; left: 50%;
+    position: absolute; top: 22px; left: 50%;
     transform: translateX(-50%);
     text-align: center; pointer-events: none; z-index: 10;
+    width: 90%;
   }
   #label h1 {
-    font-size: 13px; letter-spacing: 6px; text-transform: uppercase;
+    font-size: clamp(9px, 2vw, 13px);
+    letter-spacing: clamp(3px, 1vw, 6px);
+    text-transform: uppercase;
     color: rgba(200,235,255,0.92);
     font-weight: 400;
+    white-space: nowrap;
   }
   #label p {
-    font-size: 9px; letter-spacing: 3px;
+    font-size: clamp(7px, 1.5vw, 9px);
+    letter-spacing: clamp(1px, 0.6vw, 3px);
     color: rgba(160,210,240,0.72);
     margin-top: 4px;
+  }
+
+  /* ── PANEL ── */
+  #ui {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    display: flex; flex-direction: column; align-items: center;
+    background: rgba(0,0,0,0.72);
+    border-top: 1px solid rgba(100,200,255,0.15);
+    border-radius: 18px 18px 0 0;
+    padding: 10px 16px 20px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    z-index: 10;
+  }
+
+  /* drag handle */
+  #ui-handle {
+    width: 36px; height: 4px;
+    background: rgba(120,200,255,0.25);
+    border-radius: 2px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+  }
+
+  #author {
+    font-size: clamp(7px, 2vw, 9px);
+    letter-spacing: clamp(2px, 1vw, 4px);
+    text-transform: uppercase;
+    color: rgba(200,230,255,0.75);
+    margin-bottom: 8px;
+    width: 100%; text-align: center;
+  }
+
+  /* ── CONTROLS GRID ── */
+  #ui-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px 10px;
+    width: 100%;
+    align-items: start;
+  }
+
+  /* buttons row spans full width */
+  #btn-row {
+    grid-column: 1 / -1;
+    display: flex; gap: 10px; justify-content: center;
+    margin-top: 2px;
+  }
+
+  .divider { display: none; } /* hidden on mobile grid layout */
+
+  .ctrl {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 2px;
+  }
+  .ctrl label {
+    font-size: clamp(6px, 1.8vw, 8px);
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: rgba(120,200,255,0.65);
+    text-align: center;
+    white-space: nowrap;
+  }
+  .ctrl input[type=range] {
+    width: 100%; max-width: 88px;
+    accent-color: #00cfff; cursor: pointer;
+    height: 20px; /* larger touch target */
+  }
+  .ctrl span {
+    font-size: clamp(7px, 1.8vw, 9px);
+    color: rgba(180,230,255,0.85);
+    min-width: 28px; text-align: center;
+  }
+
+  .btn {
+    font-size: clamp(7px, 1.8vw, 8px);
+    letter-spacing: 1.4px; text-transform: uppercase;
+    color: rgba(120,200,255,0.85);
+    background: rgba(0,180,255,0.07);
+    border: 1px solid rgba(0,180,255,0.25);
+    border-radius: 20px;
+    padding: 7px 14px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+    -webkit-appearance: none;
+  }
+  .btn:active { background: rgba(0,180,255,0.22); }
+  .btn.off {
+    color: rgba(120,200,255,0.3);
+    background: rgba(0,0,0,0.05);
+    border-color: rgba(0,180,255,0.1);
+  }
+
+  /* ── DESKTOP OVERRIDE: restore single row layout ── */
+  @media (min-width: 768px) {
+    #ui {
+      bottom: 28px; left: 50%; right: auto;
+      transform: translateX(-50%);
+      border-radius: 16px;
+      border-top: 1px solid rgba(100,200,255,0.15);
+      padding: 10px 24px 11px;
+      width: auto;
+    }
+    #ui-handle { display: none; }
+    #ui-controls {
+      display: flex; flex-direction: row;
+      align-items: center;
+      gap: 20px; flex-wrap: nowrap;
+      width: auto;
+    }
+    .divider {
+      display: block;
+      width: 1px; height: 32px;
+      background: rgba(100,180,255,0.12);
+      flex-shrink: 0;
+    }
+    #btn-row {
+      display: contents; /* children flow inline with other controls */
+    }
+    .ctrl input[type=range] { width: 76px; max-width: none; }
+    #author { margin-bottom: 9px; }
   }
 </style>
 </head>
@@ -110,6 +180,7 @@
 </div>
 
 <div id="ui">
+  <div id="ui-handle"></div>
   <div id="author">Raneesh Kamar</div>
   <div id="ui-controls">
     <div class="ctrl">
@@ -145,21 +216,28 @@
       <span id="val-pulse">Off</span>
     </div>
     <div class="divider"></div>
-    <button id="btn-mode">⟳ Auto Cam</button>
-    <button id="btn-grid">⊞ Grid On</button>
+    <div id="btn-row">
+      <button id="btn-mode" class="btn">⟳ Auto Cam</button>
+      <button id="btn-grid" class="btn">⊞ Grid On</button>
+    </div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // ─── GLOBALS ───────────────────────────────────────────────────────────────
+const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
 const W = window.innerWidth, H = window.innerHeight;
 const canvasMain  = document.getElementById('canvas-main');
 const canvasBloom = document.getElementById('canvas-bloom');
 
 // ─── RENDERER ──────────────────────────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({ canvas: canvasMain, antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// Mobile: cap pixel ratio at 1.5 to save GPU fill-rate; disable antialias on small screens
+const renderer = new THREE.WebGLRenderer({
+  canvas: canvasMain, antialias: !isMobile, alpha: false,
+  powerPreference: isMobile ? 'low-power' : 'high-performance'
+});
+renderer.setPixelRatio(isMobile ? Math.min(devicePixelRatio, 1.5) : Math.min(devicePixelRatio, 2));
 renderer.setSize(W, H);
 renderer.setClearColor(0x000005, 1);
 
@@ -172,22 +250,29 @@ const scene = new THREE.Scene();
 const sceneBloom = new THREE.Scene();
 
 // ─── CAMERA ────────────────────────────────────────────────────────────────
-const camera = new THREE.PerspectiveCamera(55, W/H, 0.01, 2000);
+const camera = new THREE.PerspectiveCamera(isMobile ? 70 : 55, W/H, 0.01, 2000);
 camera.position.set(0, 28, 52);
 camera.lookAt(0, 0, 0);
 
 // ─── PARAMS ────────────────────────────────────────────────────────────────
 const P = {
-  moonMass: 0.12,   // baseline = 1× moon, slider multiplies this
-  earthMass: 1.0,   // slider: 1–5×
+  moonMass: 0.12,
+  earthMass: 1.0,
   orbitSpeed: 1.0,
-  gridN: 18,
+  gridN: isMobile ? 12 : 18,   // lower default density on mobile for performance
   warpScale: 1.4,
   softening: 1.8,
   gridHalf: 22,
   autoCamera: true,
   pulseFreq: 0.0,
 };
+
+// Sync grid slider default on mobile
+if (isMobile) {
+  const sg = document.getElementById('sl-grid');
+  sg.value = P.gridN;
+  document.getElementById('val-grid').textContent = P.gridN;
+}
 
 // ─── ORBIT STATE ───────────────────────────────────────────────────────────
 let moonAngle = 0;
@@ -518,7 +603,8 @@ function makeMoonTexture() {
 
 // ─── EARTH & MOON SPHERES ──────────────────────────────────────────────────
 function makeBody(radius, texture, emissiveColor, glowColor, glowLayers) {
-  const geo = new THREE.SphereGeometry(radius, 48, 48);
+  const segs = isMobile ? 28 : 48;
+  const geo = new THREE.SphereGeometry(radius, segs, segs);
   const mat = new THREE.MeshPhongMaterial({
     map: texture,
     emissive: new THREE.Color(emissiveColor),
@@ -577,7 +663,7 @@ const moonBloom  = makeBloomBody(0.65, 0x8899cc, 3);
 sceneBloom.add(earthBloom, moonBloom);
 
 // ─── RAIN PARTICLES ────────────────────────────────────────────────────────
-const PARTICLE_COUNT = 2200;
+const PARTICLE_COUNT = isMobile ? 900 : 2200;
 const pPositions = new Float32Array(PARTICLE_COUNT * 3);
 const pVelocities = new Float32Array(PARTICLE_COUNT * 3);
 const pColors = new Float32Array(PARTICLE_COUNT * 3);
@@ -740,37 +826,73 @@ function updatePulses(dt) {
 // ─── CAMERA CONTROLLER ─────────────────────────────────────────────────────
 let camAngle = 0, camElev = 0.52, camDist = 58;
 let autoCamera = true;
-let camT = 0; // for cinematic path
+let camT = 0;
 
-// Mouse drag
+// ── Mouse ──
 let isDragging = false, lastMX = 0, lastMY = 0;
-canvasMain.addEventListener('mousedown', e => { isDragging = true; lastMX = e.clientX; lastMY = e.clientY; autoCamera = false; updateBtnMode(); });
+canvasMain.addEventListener('mousedown', e => {
+  isDragging = true; lastMX = e.clientX; lastMY = e.clientY;
+  autoCamera = false; updateBtnMode();
+});
 canvasMain.addEventListener('mouseup',   () => { isDragging = false; });
 canvasMain.addEventListener('mousemove', e => {
   if (!isDragging) return;
   const dx = e.clientX - lastMX, dy = e.clientY - lastMY;
   camAngle += dx * 0.006;
-  camElev  = Math.max(-1.3, Math.min(1.3, camElev - dy * 0.006));
+  camElev = Math.max(-1.3, Math.min(1.3, camElev - dy * 0.006));
   lastMX = e.clientX; lastMY = e.clientY;
 });
 canvasMain.addEventListener('wheel', e => {
   camDist = Math.max(15, Math.min(120, camDist + e.deltaY * 0.05));
-});
+  e.preventDefault();
+}, { passive: false });
 
-// Touch
+// ── Touch: single finger = orbit, two fingers = pinch zoom ──
+let lastTouches = [];
+let lastPinchDist = null;
+
+function touchDist(t) {
+  const dx = t[0].clientX - t[1].clientX;
+  const dy = t[0].clientY - t[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 canvasMain.addEventListener('touchstart', e => {
-  isDragging = true;
-  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
-  autoCamera = false; updateBtnMode();
-});
-canvasMain.addEventListener('touchend', () => isDragging = false);
+  e.preventDefault();
+  lastTouches = Array.from(e.touches);
+  if (e.touches.length === 1) {
+    autoCamera = false; updateBtnMode();
+  }
+  if (e.touches.length === 2) {
+    lastPinchDist = touchDist(e.touches);
+  }
+}, { passive: false });
+
+canvasMain.addEventListener('touchend', e => {
+  e.preventDefault();
+  lastTouches = Array.from(e.touches);
+  lastPinchDist = null;
+}, { passive: false });
+
 canvasMain.addEventListener('touchmove', e => {
-  if (!isDragging) return;
-  const dx = e.touches[0].clientX - lastMX, dy = e.touches[0].clientY - lastMY;
-  camAngle += dx * 0.006;
-  camElev  = Math.max(-1.3, Math.min(1.3, camElev - dy * 0.006));
-  lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
-});
+  e.preventDefault();
+  if (e.touches.length === 1 && lastTouches.length === 1) {
+    // single finger orbit
+    const dx = e.touches[0].clientX - lastTouches[0].clientX;
+    const dy = e.touches[0].clientY - lastTouches[0].clientY;
+    camAngle += dx * 0.007;
+    camElev = Math.max(-1.3, Math.min(1.3, camElev - dy * 0.007));
+  } else if (e.touches.length === 2) {
+    // pinch zoom
+    const dist = touchDist(e.touches);
+    if (lastPinchDist !== null) {
+      const delta = lastPinchDist - dist;
+      camDist = Math.max(15, Math.min(120, camDist + delta * 0.12));
+    }
+    lastPinchDist = dist;
+  }
+  lastTouches = Array.from(e.touches);
+}, { passive: false });
 
 function updateBtnMode() {
   document.getElementById('btn-mode').textContent = autoCamera ? '⟳ Auto Cam' : '◎ Manual';
